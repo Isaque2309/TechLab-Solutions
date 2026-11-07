@@ -61,9 +61,9 @@ export const TopHeader: React.FC<TopHeaderProps> = ({ isSidebarOpen, onToggleSid
 
       {/* Right: Quick Search and Dev badge */}
       <div className="flex items-center gap-2.5">
-        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-[11px] text-blue-300 font-medium">
+        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/15 border border-blue-500/30 text-[11px] text-blue-200 font-semibold shadow-2xs">
           <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-          <span>Fernando Brito</span>
+          <span>Prof. Fernando Brito</span>
         </div>
 
         <button

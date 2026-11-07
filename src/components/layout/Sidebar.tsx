@@ -38,24 +38,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     {
       group: 'Formação & Laboratórios',
       items: [
-        { id: 'apostila', label: 'Apostila & Simuladores', badge: `${completedLessons.length}/13`, icon: BookOpen },
-        { id: 'hardware3d', label: 'Hardware 3D & PC', badge: '3D WebGL', icon: Cpu },
-        { id: 'linguagens', label: 'Linguagens & Comparador', badge: '26 langs', icon: Code2 },
-        { id: 'laboratorio', label: 'Laboratório de Dados', badge: 'CSV / Stats', icon: Database },
+        { id: 'apostila', label: 'Apostila & Simuladores', icon: BookOpen },
+        { id: 'hardware3d', label: 'Hardware 3D & PC', icon: Cpu },
+        { id: 'linguagens', label: 'Linguagens & Comparador', icon: Code2 },
+        { id: 'laboratorio', label: 'Laboratório de Dados', icon: Database },
       ],
     },
     {
       group: 'Treino & Referência',
       items: [
-        { id: 'pratica', label: 'Flashcards & Quiz', badge: 'Treino Ativo', icon: Layers },
-        { id: 'referencia', label: 'Conceitos & Cheatsheets', badge: '64 Termos', icon: Library },
-        { id: 'carreira', label: 'Carreira & Guias Práticos', badge: 'Roadmaps', icon: Map },
+        { id: 'pratica', label: 'Flashcards & Quiz', icon: Layers },
+        { id: 'referencia', label: 'Conceitos & Cheatsheets', icon: Library },
+        { id: 'carreira', label: 'Carreira & Guias Práticos', icon: Map },
       ],
     },
     {
       group: 'Caderno',
       items: [
-        { id: 'notas', label: 'Caderno de Anotações', badge: `${notes.length}`, icon: FileText },
+        { id: 'notas', label: 'Caderno de Anotações', icon: FileText },
       ],
     },
   ];
@@ -160,26 +160,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                     <button
                       key={item.id}
                       onClick={() => handleSelect(item.id)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                      className={`w-full flex items-center px-3 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                         active
-                          ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold shadow-[0_0_15px_rgba(37,99,235,0.35)] border border-blue-400/40'
+                          ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold shadow-[0_0_15px_rgba(37,99,235,0.35)] border border-blue-400/40'
                           : 'text-blue-100/80 hover:bg-blue-900/40 hover:text-white'
                       }`}
                     >
                       <div className="flex items-center gap-2.5 truncate">
-                        <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-white' : 'text-blue-400/80'}`} />
+                        <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-white' : 'text-blue-400'}`} />
                         <span className="truncate">{item.label}</span>
                       </div>
-
-                      {item.badge && (
-                        <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-                          active
-                            ? 'bg-white/20 text-white font-bold'
-                            : 'bg-blue-950/80 text-blue-300 border border-blue-500/30'
-                        }`}>
-                          {item.badge}
-                        </span>
-                      )}
                     </button>
                   );
                 })}

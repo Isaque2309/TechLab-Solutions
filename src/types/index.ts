@@ -32,6 +32,8 @@ export interface ApostilaAula {
   exemploPython: string;
   explicacaoCodigo: string;
   miniExercicio?: MiniExercicio;
+  pdfUrl?: string;
+  pdfName?: string;
 }
 
 export interface ApostilaUnidade {
@@ -40,6 +42,46 @@ export interface ApostilaUnidade {
   titulo: string;
   descricao: string;
   aulasIds: string[];
+}
+
+export interface Apostila {
+  id: string;
+  numero: number;
+  titulo: string;
+  subtitulo: string;
+  professor: string;
+  nivel: 'Iniciante' | 'Intermediário' | 'Avançado' | string;
+  duracaoTotal: string;
+  descricao: string;
+  tags: string[];
+  unidades: ApostilaUnidade[];
+  aulas: ApostilaAula[];
+  pdfUrl?: string;
+  pdfName?: string;
+  isCustom?: boolean;
+}
+
+export interface FlashcardDeck {
+  id: string;
+  numero: number;
+  titulo: string;
+  categoria: string;
+  professor: string;
+  descricao: string;
+  cards: Flashcard[];
+  isCustom?: boolean;
+}
+
+export interface QuizSimulado {
+  id: string;
+  numero: number;
+  titulo: string;
+  area: string;
+  professor: string;
+  tempoSugerido: string;
+  descricao: string;
+  perguntas: QuizPergunta[];
+  isCustom?: boolean;
 }
 
 export interface SimuladoPergunta {

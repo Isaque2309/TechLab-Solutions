@@ -1,15 +1,44 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { NavSection, NoteItem } from '../types';
+import { NavSection, NoteItem, Apostila, FlashcardDeck, QuizSimulado } from '../types';
 import { TECHLAB_DATA } from '../data/techlabData';
+import { DEFAULT_APOSTILAS, DEFAULT_FLASHCARD_DECKS, DEFAULT_QUIZ_SIMULADOS } from '../data/apostilasData';
 
 interface TechLabContextType {
   currentSection: NavSection;
   setCurrentSection: (section: NavSection) => void;
+  
+  // Apostilas Management
+  allApostilas: Apostila[];
+  activeApostilaId: string;
+  setActiveApostilaId: (id: string) => void;
   activeLessonId: string;
   setActiveLessonId: (id: string) => void;
   completedLessons: string[];
   toggleLessonCompleted: (id: string) => void;
   isLessonCompleted: (id: string) => boolean;
+  addApostila: (apostila: Omit<Apostila, 'id' | 'numero' | 'isCustom'>) => void;
+  deleteApostila: (id: string) => void;
+  updateApostilaPdf: (apostilaId: string, pdfUrl: string, pdfName: string) => void;
+  removeApostilaPdf: (apostilaId: string) => void;
+  updateLessonPdf: (lessonId: string, pdfUrl: string, pdfName: string) => void;
+  removeLessonPdf: (lessonId: string) => void;
+  
+  // Flashcards Management
+  allDecks: FlashcardDeck[];
+  activeDeckId: string;
+  setActiveDeckId: (id: string) => void;
+  addDeck: (deck: Omit<FlashcardDeck, 'id' | 'numero' | 'isCustom'>) => void;
+  deleteDeck: (id: string) => void;
+  flashcardRatings: Record<string, 'errei' | 'dificil' | 'bom' | 'facil'>;
+  rateFlashcard: (id: string, rating: 'errei' | 'dificil' | 'bom' | 'facil') => void;
+
+  // Simulados / Quiz Management
+  allQuizzes: QuizSimulado[];
+  activeSimuladoId: string;
+  setActiveSimuladoId: (id: string) => void;
+  addQuiz: (quiz: Omit<QuizSimulado, 'id' | 'numero' | 'isCustom'>) => void;
+  deleteQuiz: (id: string) => void;
+
   overallProgressPct: number;
   theme: 'dark' | 'light';
   toggleTheme: () => void;
@@ -17,11 +46,9 @@ interface TechLabContextType {
   addNote: (note: Omit<NoteItem, 'id' | 'dataCriacao' | 'dataAtualizacao'>) => void;
   updateNote: (id: string, updates: Partial<NoteItem>) => void;
   deleteNote: (id: string) => void;
-  flashcardRatings: Record<string, 'errei' | 'dificil' | 'bom' | 'facil'>;
-  rateFlashcard: (id: string, rating: 'errei' | 'dificil' | 'bom' | 'facil') => void;
   isSearchOpen: boolean;
   setIsSearchOpen: (open: boolean) => void;
-  navigateToLesson: (lessonId: string) => void;
+  navigateToLesson: (lessonId: string, apostilaId?: string) => void;
 }
 
 const TechLabContext = createContext<TechLabContextType | undefined>(undefined);
@@ -47,10 +74,9 @@ const INITIAL_NOTES: NoteItem[] = [
 
 export const TechLabProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentSection, setCurrentSection] = useState<NavSection>('inicio');
-  const [activeLessonId, setActiveLessonId] = useState<string>('aula-01');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
-  // Theme is locked to dark royal mode
+  // Theme locked to dark royal mode
   const [theme] = useState<'dark'>('dark');
 
   useEffect(() => {
@@ -60,7 +86,236 @@ export const TechLabProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const toggleTheme = () => {
-    // Theme switching disabled by user request
+    // Locked in royal dark theme
+  };
+
+  // 1. APOSTILAS
+  const [customApostilas, setCustomApostilas] = useState<Apostila[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('techlab_custom_apostilas');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return [];
+        }
+      }
+    }
+    return [];
+  });
+
+  // PDF attachments per apostila (stored in localStorage)
+  const [apostilaPdfs, setApostilaPdfs] = useState<Record<string, { url: string; name: string }>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('techlab_apostila_pdfs');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return {};
+        }
+      }
+    }
+    return {};
+  });
+
+  const [lessonPdfs, setLessonPdfs] = useState<Record<string, { url: string; name: string }>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('techlab_lesson_pdfs');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return {};
+        }
+      }
+    }
+    return {};
+  });
+
+  const allApostilas: Apostila[] = [
+    ...DEFAULT_APOSTILAS,
+    ...customApostilas,
+  ].map(a => {
+    const mappedAulas = a.aulas.map(aula => {
+      if (lessonPdfs[aula.id]) {
+        return {
+          ...aula,
+          pdfUrl: lessonPdfs[aula.id].url,
+          pdfName: lessonPdfs[aula.id].name,
+        };
+      }
+      return aula;
+    });
+
+    const apostPdf = apostilaPdfs[a.id];
+    return {
+      ...a,
+      pdfUrl: apostPdf ? apostPdf.url : a.pdfUrl,
+      pdfName: apostPdf ? apostPdf.name : a.pdfName,
+      aulas: mappedAulas,
+    };
+  });
+
+  const [activeApostilaId, setActiveApostilaId] = useState<string>(() => {
+    return DEFAULT_APOSTILAS[0]?.id || 'apostila-01';
+  });
+
+  const [activeLessonId, setActiveLessonId] = useState<string>('aula-01');
+
+  const addApostila = (newApostilaData: Omit<Apostila, 'id' | 'numero' | 'isCustom'>) => {
+    const nextNum = allApostilas.length + 1;
+    const newApostila: Apostila = {
+      ...newApostilaData,
+      id: `apostila-custom-${Date.now()}`,
+      numero: nextNum,
+      isCustom: true,
+    };
+    const updated = [...customApostilas, newApostila];
+    setCustomApostilas(updated);
+    localStorage.setItem('techlab_custom_apostilas', JSON.stringify(updated));
+    setActiveApostilaId(newApostila.id);
+    if (newApostila.aulas[0]) {
+      setActiveLessonId(newApostila.aulas[0].id);
+    }
+  };
+
+  const updateApostilaPdf = (apostilaId: string, pdfUrl: string, pdfName: string) => {
+    setApostilaPdfs(prev => {
+      const updated = { ...prev, [apostilaId]: { url: pdfUrl, name: pdfName } };
+      localStorage.setItem('techlab_apostila_pdfs', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const removeApostilaPdf = (apostilaId: string) => {
+    setApostilaPdfs(prev => {
+      const updated = { ...prev };
+      delete updated[apostilaId];
+      localStorage.setItem('techlab_apostila_pdfs', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const updateLessonPdf = (lessonId: string, pdfUrl: string, pdfName: string) => {
+    setLessonPdfs(prev => {
+      const updated = { ...prev, [lessonId]: { url: pdfUrl, name: pdfName } };
+      localStorage.setItem('techlab_lesson_pdfs', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const removeLessonPdf = (lessonId: string) => {
+    setLessonPdfs(prev => {
+      const updated = { ...prev };
+      delete updated[lessonId];
+      localStorage.setItem('techlab_lesson_pdfs', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const deleteApostila = (id: string) => {
+    const updated = customApostilas.filter(a => a.id !== id);
+    setCustomApostilas(updated);
+    localStorage.setItem('techlab_custom_apostilas', JSON.stringify(updated));
+    if (activeApostilaId === id) {
+      setActiveApostilaId(DEFAULT_APOSTILAS[0]?.id || 'apostila-01');
+      setActiveLessonId('aula-01');
+    }
+  };
+
+  // 2. FLASHCARD DECKS
+  const [customDecks, setCustomDecks] = useState<FlashcardDeck[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('techlab_custom_decks');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return [];
+        }
+      }
+    }
+    return [];
+  });
+
+  const allDecks: FlashcardDeck[] = [
+    ...DEFAULT_FLASHCARD_DECKS,
+    ...customDecks,
+  ];
+
+  const [activeDeckId, setActiveDeckId] = useState<string>(() => {
+    return DEFAULT_FLASHCARD_DECKS[0]?.id || 'deck-01';
+  });
+
+  const addDeck = (newDeckData: Omit<FlashcardDeck, 'id' | 'numero' | 'isCustom'>) => {
+    const nextNum = allDecks.length + 1;
+    const newDeck: FlashcardDeck = {
+      ...newDeckData,
+      id: `deck-custom-${Date.now()}`,
+      numero: nextNum,
+      isCustom: true,
+    };
+    const updated = [...customDecks, newDeck];
+    setCustomDecks(updated);
+    localStorage.setItem('techlab_custom_decks', JSON.stringify(updated));
+    setActiveDeckId(newDeck.id);
+  };
+
+  const deleteDeck = (id: string) => {
+    const updated = customDecks.filter(d => d.id !== id);
+    setCustomDecks(updated);
+    localStorage.setItem('techlab_custom_decks', JSON.stringify(updated));
+    if (activeDeckId === id) {
+      setActiveDeckId(DEFAULT_FLASHCARD_DECKS[0]?.id || 'deck-01');
+    }
+  };
+
+  // 3. QUIZ SIMULADOS
+  const [customQuizzes, setCustomQuizzes] = useState<QuizSimulado[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('techlab_custom_quizzes');
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return [];
+        }
+      }
+    }
+    return [];
+  });
+
+  const allQuizzes: QuizSimulado[] = [
+    ...DEFAULT_QUIZ_SIMULADOS,
+    ...customQuizzes,
+  ];
+
+  const [activeSimuladoId, setActiveSimuladoId] = useState<string>(() => {
+    return DEFAULT_QUIZ_SIMULADOS[0]?.id || 'simulado-01';
+  });
+
+  const addQuiz = (newQuizData: Omit<QuizSimulado, 'id' | 'numero' | 'isCustom'>) => {
+    const nextNum = allQuizzes.length + 1;
+    const newQuiz: QuizSimulado = {
+      ...newQuizData,
+      id: `simulado-custom-${Date.now()}`,
+      numero: nextNum,
+      isCustom: true,
+    };
+    const updated = [...customQuizzes, newQuiz];
+    setCustomQuizzes(updated);
+    localStorage.setItem('techlab_custom_quizzes', JSON.stringify(updated));
+    setActiveSimuladoId(newQuiz.id);
+  };
+
+  const deleteQuiz = (id: string) => {
+    const updated = customQuizzes.filter(q => q.id !== id);
+    setCustomQuizzes(updated);
+    localStorage.setItem('techlab_custom_quizzes', JSON.stringify(updated));
+    if (activeSimuladoId === id) {
+      setActiveSimuladoId(DEFAULT_QUIZ_SIMULADOS[0]?.id || 'simulado-01');
+    }
   };
 
   // Completed Lessons
@@ -75,7 +330,7 @@ export const TechLabProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       }
     }
-    return ['aula-01']; // Start with first lesson checked as demo
+    return ['aula-01'];
   });
 
   const toggleLessonCompleted = (id: string) => {
@@ -106,16 +361,16 @@ export const TechLabProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return INITIAL_NOTES;
   });
 
-  const saveNotes = (newNotes: NoteItem[]) => {
-    setNotes(newNotes);
-    localStorage.setItem('techlab_notes', JSON.stringify(newNotes));
+  const saveNotes = (updated: NoteItem[]) => {
+    setNotes(updated);
+    localStorage.setItem('techlab_notes', JSON.stringify(updated));
   };
 
-  const addNote = (note: Omit<NoteItem, 'id' | 'dataCriacao' | 'dataAtualizacao'>) => {
+  const addNote = (noteData: Omit<NoteItem, 'id' | 'dataCriacao' | 'dataAtualizacao'>) => {
     const today = new Date().toLocaleDateString('pt-BR');
     const newNote: NoteItem = {
-      ...note,
-      id: 'note-' + Date.now(),
+      ...noteData,
+      id: `note-${Date.now()}`,
       dataCriacao: today,
       dataAtualizacao: today,
     };
@@ -133,7 +388,7 @@ export const TechLabProvider: React.FC<{ children: React.ReactNode }> = ({ child
     saveNotes(notes.filter(n => n.id !== id));
   };
 
-  // Flashcards
+  // Flashcard Ratings
   const [flashcardRatings, setFlashcardRatings] = useState<Record<string, 'errei' | 'dificil' | 'bom' | 'facil'>>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('techlab_flashcard_ratings');
@@ -156,7 +411,8 @@ export const TechLabProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
-  const navigateToLesson = (lessonId: string) => {
+  const navigateToLesson = (lessonId: string, apostilaId?: string) => {
+    if (apostilaId) setActiveApostilaId(apostilaId);
     setActiveLessonId(lessonId);
     setCurrentSection('apostila');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -179,11 +435,32 @@ export const TechLabProvider: React.FC<{ children: React.ReactNode }> = ({ child
       value={{
         currentSection,
         setCurrentSection,
+        allApostilas,
+        activeApostilaId,
+        setActiveApostilaId,
         activeLessonId,
         setActiveLessonId,
         completedLessons,
         toggleLessonCompleted,
         isLessonCompleted,
+        addApostila,
+        deleteApostila,
+        updateApostilaPdf,
+        removeApostilaPdf,
+        updateLessonPdf,
+        removeLessonPdf,
+        allDecks,
+        activeDeckId,
+        setActiveDeckId,
+        addDeck,
+        deleteDeck,
+        flashcardRatings,
+        rateFlashcard,
+        allQuizzes,
+        activeSimuladoId,
+        setActiveSimuladoId,
+        addQuiz,
+        deleteQuiz,
         overallProgressPct,
         theme,
         toggleTheme,
@@ -191,8 +468,6 @@ export const TechLabProvider: React.FC<{ children: React.ReactNode }> = ({ child
         addNote,
         updateNote,
         deleteNote,
-        flashcardRatings,
-        rateFlashcard,
         isSearchOpen,
         setIsSearchOpen,
         navigateToLesson,
